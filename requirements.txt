@@ -1,0 +1,32 @@
+MERN Requirements
+=================
+
+This file is a convenience checklist for the MERN workspace.
+For actual dependency installation, use:
+- backend/package.json
+- frontend/package.json
+
+System requirements
+- Node.js 18+ recommended
+- npm 9+ recommended
+- MongoDB Atlas or MongoDB server access
+
+Backend dependencies
+- axios
+- cors
+- dotenv
+- express
+- mongoose
+- nodemon
+
+Frontend dependencies
+- react
+- react-dom
+- react-router-dom
+- vite
+- @vitejs/plugin-react
+- xlsx
+
+Install commands
+- cd backend && npm install
+- cd frontend && npm install
