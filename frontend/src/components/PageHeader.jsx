@@ -4,9 +4,9 @@ function PageHeader({ title, description, actions = null }) {
       <div className="page-header-copy">
         <span className="eyebrow">Workspace</span>
         <h2>{title}</h2>
-        {description ? <p className="page-description">{description}</p> : null}
+        {description && <p className="page-description">{description}</p>}
       </div>
-      {actions ? <div className="header-actions">{actions}</div> : null}
+      {actions && <div className="header-actions">{actions}</div>}
     </div>
   );
 }

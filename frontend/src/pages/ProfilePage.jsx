@@ -1,50 +1,48 @@
 import { useEffect, useState } from "react";
-
 import PageHeader from "../components/PageHeader";
 import StatusBanner from "../components/StatusBanner";
 import { api } from "../lib/api";
 
 const API_KEY_CARDS = [
-  { apiName: "Gemini_API_KEY", label: "Gemini" },
-  { apiName: "Claude_API_KEY", label: "Claude" },
-  { apiName: "OpenAI_API_KEY", label: "OpenAI" }
+  { apiName: "Gemini_API_KEY",  label: "Gemini",  badge: "google"    },
+  { apiName: "Claude_API_KEY",  label: "Claude",  badge: "anthropic" },
+  { apiName: "OpenAI_API_KEY",  label: "OpenAI",  badge: "openai"    },
 ];
 
 const MODEL_CARDS = [
-  { modelKey: "Gemini_MODEL_NAME", label: "Gemini" },
-  { modelKey: "Claude_MODEL_NAME", label: "Claude" },
-  { modelKey: "OpenAI_MODEL_NAME", label: "OpenAI" }
+  { modelKey: "Gemini_MODEL_NAME",  label: "Gemini"  },
+  { modelKey: "Claude_MODEL_NAME",  label: "Claude"  },
+  { modelKey: "OpenAI_MODEL_NAME",  label: "OpenAI"  },
 ];
 
 function ProfilePage() {
-  const [activeTab, setActiveTab] = useState("apiKeys");
-  const [apiKeys, setApiKeys] = useState([]);
+  const [activeTab, setActiveTab]       = useState("apiKeys");
+  const [apiKeys, setApiKeys]           = useState([]);
   const [modelConfigs, setModelConfigs] = useState([]);
   const [draftApiKeys, setDraftApiKeys] = useState({});
-  const [draftModels, setDraftModels] = useState({});
-  const [status, setStatus] = useState({ type: "", message: "" });
+  const [draftModels, setDraftModels]   = useState({});
+  const [status, setStatus]             = useState({ type: "", message: "" });
 
   async function loadProfileData() {
     try {
-      const [apiKeyData, modelData] = await Promise.all([
+      const [keyData, modelData] = await Promise.all([
         api.listApiKeys(),
-        api.listModelConfigs()
+        api.listModelConfigs(),
       ]);
-      setApiKeys(apiKeyData);
+      setApiKeys(keyData);
       setModelConfigs(modelData);
     } catch (err) {
       setStatus({ type: "error", message: err.message });
     }
   }
 
-  useEffect(() => {
-    loadProfileData();
-  }, []);
+  useEffect(() => { loadProfileData(); }, []);
 
   async function saveApiKey(apiName) {
     try {
       await api.upsertApiKey(apiName, draftApiKeys[apiName] ?? "");
-      setStatus({ type: "success", message: `${apiName} saved successfully.` });
+      setDraftApiKeys((prev) => ({ ...prev, [apiName]: "" }));
+      setStatus({ type: "success", message: `${apiName} saved.` });
       loadProfileData();
     } catch (err) {
       setStatus({ type: "error", message: err.message });
@@ -54,7 +52,7 @@ function ProfilePage() {
   async function deleteApiKey(apiName) {
     try {
       await api.deleteApiKey(apiName);
-      setStatus({ type: "success", message: `${apiName} deleted successfully.` });
+      setStatus({ type: "success", message: `${apiName} removed.` });
       loadProfileData();
     } catch (err) {
       setStatus({ type: "error", message: err.message });
@@ -64,7 +62,8 @@ function ProfilePage() {
   async function saveModel(modelKey) {
     try {
       await api.upsertModelConfig(modelKey, draftModels[modelKey] ?? "");
-      setStatus({ type: "success", message: `${modelKey} saved successfully.` });
+      setDraftModels((prev) => ({ ...prev, [modelKey]: "" }));
+      setStatus({ type: "success", message: `${modelKey} saved.` });
       loadProfileData();
     } catch (err) {
       setStatus({ type: "error", message: err.message });
@@ -74,51 +73,68 @@ function ProfilePage() {
   async function deleteModel(modelKey) {
     try {
       await api.deleteModelConfig(modelKey);
-      setStatus({ type: "success", message: `${modelKey} deleted successfully.` });
+      setStatus({ type: "success", message: `${modelKey} removed.` });
       loadProfileData();
     } catch (err) {
       setStatus({ type: "error", message: err.message });
     }
   }
 
+  function maskKey(key) {
+    if (!key) return "Not configured";
+    return key.length <= 8 ? "••••••••" : `${key.slice(0, 4)}${"•".repeat(Math.min(key.length - 8, 20))}${key.slice(-4)}`;
+  }
+
   return (
     <div>
       <PageHeader
         title="Profile"
-        description="Manage provider API keys and model manager settings."
+        description="Configure provider API keys and model names used during evaluation."
       />
       <StatusBanner type={status.type} message={status.message} />
 
-      <label className="block-field tab-dropdown">
-        Profile Section
-        <select value={activeTab} onChange={(event) => setActiveTab(event.target.value)}>
-          <option value="apiKeys">API Keys</option>
-          <option value="models">Model Manager</option>
-        </select>
-      </label>
+      <div className="tab-bar">
+        <button
+          className={activeTab === "apiKeys" ? "tab-active" : ""}
+          onClick={() => setActiveTab("apiKeys")}
+        >
+          API Keys
+        </button>
+        <button
+          className={activeTab === "models" ? "tab-active" : ""}
+          onClick={() => setActiveTab("models")}
+        >
+          Model Manager
+        </button>
+      </div>
 
       {activeTab === "apiKeys" ? (
         <div className="card-grid">
           {API_KEY_CARDS.map((card) => {
-            const existing = apiKeys.find((item) => item.apiName === card.apiName);
+            const existing = apiKeys.find((k) => k.apiName === card.apiName);
             return (
-              <div className="card" key={card.apiName}>
-                <h3>{card.label}</h3>
-                <p>Saved API Key: {existing?.apiKey || "Not available"}</p>
+              <div className="profile-card" key={card.apiName}>
+                <div className="profile-card-header">
+                  <h3>{card.label}</h3>
+                  <span className="provider-badge">{card.badge}</span>
+                </div>
+                <div className="saved-value">{maskKey(existing?.apiKey)}</div>
                 <div className="inline-form">
                   <input
+                    type="password"
                     value={draftApiKeys[card.apiName] ?? ""}
-                    onChange={(event) =>
-                      setDraftApiKeys((current) => ({
-                        ...current,
-                        [card.apiName]: event.target.value
-                      }))
+                    onChange={(e) =>
+                      setDraftApiKeys((prev) => ({ ...prev, [card.apiName]: e.target.value }))
                     }
-                    placeholder="Enter API key"
+                    placeholder="Paste new key…"
                   />
-                  <button onClick={() => saveApiKey(card.apiName)}>Add Key</button>
+                  <button onClick={() => saveApiKey(card.apiName)}>Save</button>
                 </div>
-                <button onClick={() => deleteApiKey(card.apiName)}>Delete</button>
+                {existing?.apiKey && (
+                  <button className="btn-danger" onClick={() => deleteApiKey(card.apiName)}>
+                    Remove key
+                  </button>
+                )}
               </div>
             );
           })}
@@ -126,25 +142,29 @@ function ProfilePage() {
       ) : (
         <div className="card-grid">
           {MODEL_CARDS.map((card) => {
-            const existing = modelConfigs.find((item) => item.modelKey === card.modelKey);
+            const existing = modelConfigs.find((m) => m.modelKey === card.modelKey);
             return (
-              <div className="card" key={card.modelKey}>
-                <h3>{card.label}</h3>
-                <p>Saved Model: {existing?.modelName || "Not available"}</p>
+              <div className="profile-card" key={card.modelKey}>
+                <div className="profile-card-header">
+                  <h3>{card.label}</h3>
+                  <span className="provider-badge">model</span>
+                </div>
+                <div className="saved-value">{existing?.modelName || "Not configured"}</div>
                 <div className="inline-form">
                   <input
                     value={draftModels[card.modelKey] ?? ""}
-                    onChange={(event) =>
-                      setDraftModels((current) => ({
-                        ...current,
-                        [card.modelKey]: event.target.value
-                      }))
+                    onChange={(e) =>
+                      setDraftModels((prev) => ({ ...prev, [card.modelKey]: e.target.value }))
                     }
-                    placeholder="Enter model name"
+                    placeholder="e.g. claude-3-5-sonnet-latest"
                   />
-                  <button onClick={() => saveModel(card.modelKey)}>Save Model</button>
+                  <button onClick={() => saveModel(card.modelKey)}>Save</button>
                 </div>
-                <button onClick={() => deleteModel(card.modelKey)}>Delete</button>
+                {existing?.modelName && (
+                  <button className="btn-danger" onClick={() => deleteModel(card.modelKey)}>
+                    Reset
+                  </button>
+                )}
               </div>
             );
           })}
