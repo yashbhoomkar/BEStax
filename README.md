@@ -121,6 +121,47 @@ npm run dev
 
 Then open the frontend URL shown by Vite in your browser.
 
+## Docker Setup
+
+You can also run the MERN app with Docker Desktop.
+
+This Docker setup uses:
+- one container for the backend
+- one container for the frontend
+- your external MongoDB Atlas connection from `backend/.env`
+
+### Before Running Docker
+
+Make sure:
+- Docker Desktop is open
+- `MERN/backend/.env` has a valid `MONGO_URI`
+
+### Build and Run
+
+```bash
+cd MERN
+docker compose up --build
+```
+
+### Access
+
+- frontend: `http://localhost:5173`
+- backend: `http://localhost:4000`
+
+### Stop Containers
+
+```bash
+cd MERN
+docker compose down
+```
+
+### Rebuild After Code Changes
+
+```bash
+cd MERN
+docker compose up --build
+```
+
 ## Main API Groups
 
 - `/api/health`

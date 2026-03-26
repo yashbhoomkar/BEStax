@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import PageHeader from "../components/PageHeader";
@@ -13,6 +13,7 @@ function ProjectCreatePage() {
   const [evaluators, setEvaluators] = useState([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState("");
   const [selectedEvaluatorNames, setSelectedEvaluatorNames] = useState([]);
+  const [evaluatorDraft, setEvaluatorDraft] = useState("");
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [datasetPreview, setDatasetPreview] = useState(null);
@@ -143,6 +144,18 @@ function ProjectCreatePage() {
     }
   }
 
+  function handleAddEvaluator() {
+    if (!evaluatorDraft) {
+      return;
+    }
+
+    setSelectedEvaluatorNames((current) =>
+      current.includes(evaluatorDraft) ? current : [...current, evaluatorDraft]
+    );
+    setEvaluatorDraft("");
+    setIsEvaluated(false);
+  }
+
   return (
     <div>
       <PageHeader
@@ -182,26 +195,69 @@ function ProjectCreatePage() {
       </label>
 
       <div className="section-panel">
-        <h3>Select Evaluators</h3>
+        <div className="section-header-inline">
+          <div>
+            <h3>Select Evaluators</h3>
+            <p>Use the dropdown, then review the selected evaluator chips below.</p>
+          </div>
+          {selectedEvaluatorNames.length > 0 ? (
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={() => {
+                setSelectedEvaluatorNames([]);
+                setIsEvaluated(false);
+              }}
+            >
+              Clear Selection
+            </button>
+          ) : null}
+        </div>
         <label className="block-field">
           Evaluator Dropdown
-          <select
-            multiple
-            className="multi-select"
-            value={selectedEvaluatorNames}
-            onChange={(event) => {
-              const values = Array.from(event.target.selectedOptions, (option) => option.value);
-              setSelectedEvaluatorNames(values);
-              setIsEvaluated(false);
-            }}
-          >
-            {evaluators.map((evaluator) => (
-              <option key={evaluator.id} value={evaluator.name}>
-                {evaluator.name}
-              </option>
-            ))}
-          </select>
+          <div className="selection-control-row">
+            <select
+              value={evaluatorDraft}
+              onChange={(event) => setEvaluatorDraft(event.target.value)}
+            >
+              <option value="">Select evaluator</option>
+              {evaluators.map((evaluator) => (
+                <option
+                  key={evaluator.id}
+                  value={evaluator.name}
+                  disabled={selectedEvaluatorNames.includes(evaluator.name)}
+                >
+                  {evaluator.name}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="button-secondary" onClick={handleAddEvaluator}>
+              Add Evaluator
+            </button>
+          </div>
         </label>
+        {selectedEvaluatorNames.length > 0 ? (
+          <div className="selection-chip-row">
+            {selectedEvaluatorNames.map((name) => (
+              <button
+                key={name}
+                type="button"
+                className="selection-chip"
+                onClick={() => {
+                  setSelectedEvaluatorNames((current) =>
+                    current.filter((item) => item !== name)
+                  );
+                  setIsEvaluated(false);
+                }}
+              >
+                <span>{name}</span>
+                <span className="chip-close">×</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="small-note">No evaluators selected yet.</p>
+        )}
       </div>
 
       {datasetPreview ? (
@@ -214,7 +270,10 @@ function ProjectCreatePage() {
                 {datasetPreview.databaseType}
               </p>
             </div>
-            <button onClick={handleEvaluate}>Evaluate</button>
+            <div className="header-actions">
+              <button onClick={handleEvaluate}>Evaluate</button>
+              {isEvaluated ? <button onClick={handleSaveProject}>Save Project</button> : null}
+            </div>
           </div>
           <EditableTable
             columns={datasetPreview.columns}
@@ -223,11 +282,6 @@ function ProjectCreatePage() {
             onAddRow={addPreviewRow}
             onAddColumn={addPreviewColumn}
           />
-          {isEvaluated ? (
-            <div className="top-gap">
-              <button onClick={handleSaveProject}>Save Project</button>
-            </div>
-          ) : null}
         </div>
       ) : null}
     </div>

@@ -11,6 +11,7 @@ function ProjectDetailPage() {
   const { projectId } = useParams();
   const [project, setProject] = useState(null);
   const [evaluators, setEvaluators] = useState([]);
+  const [evaluatorDraft, setEvaluatorDraft] = useState("");
   const [status, setStatus] = useState({ type: "", message: "" });
   const [loading, setLoading] = useState(true);
 
@@ -100,18 +101,32 @@ function ProjectDetailPage() {
     });
   }
 
+  async function persistProjectState() {
+    const payload = {
+      name: project.name,
+      description: project.description,
+      datasetName: project.datasetSnapshot.name,
+      score: computeProjectScore(project.datasetSnapshot.rows, project.evaluatorNames),
+      lastUpdated: new Date().toISOString().slice(0, 10),
+      evaluatorNames: project.evaluatorNames,
+      datasetSnapshot: project.datasetSnapshot
+    };
+    const updated = await api.updateProject(projectId, payload);
+    updated.datasetSnapshot = {
+      ...updated.datasetSnapshot,
+      columns: [...(updated.datasetSnapshot?.columns || [])],
+      rows: normalizeRows(
+        updated.datasetSnapshot?.rows || [],
+        updated.datasetSnapshot?.columns || []
+      )
+    };
+    updated.evaluatorNames = updated.evaluatorNames || [];
+    return updated;
+  }
+
   async function handleSave() {
     try {
-      const payload = {
-        name: project.name,
-        description: project.description,
-        datasetName: project.datasetSnapshot.name,
-        score: computeProjectScore(project.datasetSnapshot.rows, project.evaluatorNames),
-        lastUpdated: new Date().toISOString().slice(0, 10),
-        evaluatorNames: project.evaluatorNames,
-        datasetSnapshot: project.datasetSnapshot
-      };
-      const updated = await api.updateProject(projectId, payload);
+      const updated = await persistProjectState();
       updated.datasetSnapshot = {
         ...updated.datasetSnapshot,
         columns: [...(updated.datasetSnapshot?.columns || [])],
@@ -130,6 +145,8 @@ function ProjectDetailPage() {
 
   async function handleReEvaluate() {
     try {
+      const savedProject = await persistProjectState();
+      setProject(savedProject);
       const updated = await api.reEvaluateProject(projectId);
       updated.datasetSnapshot = {
         ...updated.datasetSnapshot,
@@ -147,6 +164,20 @@ function ProjectDetailPage() {
     }
   }
 
+  function handleAddEvaluator() {
+    if (!evaluatorDraft || !project) {
+      return;
+    }
+
+    updateField(
+      "evaluatorNames",
+      project.evaluatorNames.includes(evaluatorDraft)
+        ? project.evaluatorNames
+        : [...project.evaluatorNames, evaluatorDraft]
+    );
+    setEvaluatorDraft("");
+  }
+
   if (loading) {
     return <p>Loading project...</p>;
   }
@@ -160,6 +191,14 @@ function ProjectDetailPage() {
       <PageHeader
         title="Project Detail"
         description="Edit metadata, update the dataset snapshot, save changes, or re-evaluate."
+        actions={
+          <div className="header-actions">
+            <button className="button-secondary" onClick={handleReEvaluate}>
+              Re-evaluate
+            </button>
+            <button onClick={handleSave}>Save Changes</button>
+          </div>
+        }
       />
       <StatusBanner type={status.type} message={status.message} />
 
@@ -201,36 +240,71 @@ function ProjectDetailPage() {
       </label>
 
       <div className="section-panel">
-        <h3>Evaluators</h3>
+        <div className="section-header-inline">
+          <div>
+            <h3>Evaluators</h3>
+            <p>Selected evaluators appear as horizontal chips below the dropdown.</p>
+          </div>
+          {project.evaluatorNames.length > 0 ? (
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={() => updateField("evaluatorNames", [])}
+            >
+              Clear Selection
+            </button>
+          ) : null}
+        </div>
         <label className="block-field">
           Evaluator Dropdown
-          <select
-            multiple
-            className="multi-select"
-            value={project.evaluatorNames}
-            onChange={(event) =>
-              updateField(
-                "evaluatorNames",
-                Array.from(event.target.selectedOptions, (option) => option.value)
-              )
-            }
-          >
-            {evaluators.map((evaluator) => (
-              <option key={evaluator.id} value={evaluator.name}>
-                {evaluator.name}
-              </option>
-            ))}
-          </select>
+          <div className="selection-control-row">
+            <select
+              value={evaluatorDraft}
+              onChange={(event) => setEvaluatorDraft(event.target.value)}
+            >
+              <option value="">Select evaluator</option>
+              {evaluators.map((evaluator) => (
+                <option
+                  key={evaluator.id}
+                  value={evaluator.name}
+                  disabled={project.evaluatorNames.includes(evaluator.name)}
+                >
+                  {evaluator.name}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="button-secondary" onClick={handleAddEvaluator}>
+              Add Evaluator
+            </button>
+          </div>
         </label>
+        {project.evaluatorNames.length > 0 ? (
+          <div className="selection-chip-row">
+            {project.evaluatorNames.map((name) => (
+              <button
+                key={name}
+                type="button"
+                className="selection-chip"
+                onClick={() =>
+                  updateField(
+                    "evaluatorNames",
+                    project.evaluatorNames.filter((item) => item !== name)
+                  )
+                }
+              >
+                <span>{name}</span>
+                <span className="chip-close">×</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="small-note">No evaluators selected for this project.</p>
+        )}
       </div>
 
       <div className="section-panel">
         <div className="section-header-inline">
           <h3>Project Dataset Snapshot</h3>
-          <div className="header-actions">
-            <button onClick={handleReEvaluate}>Re-evaluate</button>
-            <button onClick={handleSave}>Save Changes</button>
-          </div>
         </div>
         <EditableTable
           columns={project.datasetSnapshot.columns}
